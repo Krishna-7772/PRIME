@@ -1,0 +1,83 @@
+{
+  "version": "1.0.0",
+  "mosca_framework": {
+    "description": "Dr. Michele Mosca's Theorem for Quantum Risk: If Data Lifetime (X) + Migration Time (Y) > Quantum Horizon (Z), then information will be exposed to quantum adversaries before migration can complete.",
+    "default_quantum_horizon_years": 10,
+    "horizon_notes": "Configurable assumption representing expected emergence of a Cryptographically Relevant Quantum Computer (CRQC)."
+  },
+  "business_criticality_weights": {
+    "CRITICAL": 4,
+    "HIGH": 3,
+    "MEDIUM": 2,
+    "LOW": 1
+  },
+  "quantum_exposure_weights": {
+    "CRITICAL": 4,
+    "HIGH": 3,
+    "MEDIUM": 2,
+    "LOW": 1,
+    "NONE": 0
+  },
+  "classification_rules": [
+    {
+      "id": "RULE-QUANTUM-ASYMMETRIC-SNDL",
+      "description": "Public-key key establishment or asymmetric encryption subject to Store-Now-Decrypt-Later",
+      "condition": {
+        "family": "asymmetric",
+        "purposes": ["key_establishment", "encryption", "protocol_security"],
+        "quantum_vulnerable": true
+      },
+      "quantum_exposure": "CRITICAL",
+      "rationale": "Adversaries can record ciphertext today and decrypt retroactively once CRQC is realized."
+    },
+    {
+      "id": "RULE-QUANTUM-ASYMMETRIC-AUTH",
+      "description": "Public-key digital signatures used for authentication and code signing",
+      "condition": {
+        "family": "asymmetric",
+        "purposes": ["digital_signature", "certificate"],
+        "quantum_vulnerable": true
+      },
+      "quantum_exposure": "HIGH",
+      "rationale": "CRQC will forge digital signatures, compromising identity verification and software integrity."
+    },
+    {
+      "id": "RULE-CLASSICAL-BROKEN-HYGIENE",
+      "description": "Classically broken cryptographic primitives (MD5, SHA-1, 3DES, DES)",
+      "condition": {
+        "algorithms": ["MD5", "SHA-1", "3DES", "DES", "RC4"]
+      },
+      "hygiene_risk": "CRITICAL",
+      "rationale": "Primitive has known classical collision or cryptanalytic attacks regardless of quantum timeline."
+    },
+    {
+      "id": "RULE-SYMMETRIC-GROVER-SHORT",
+      "description": "128-bit symmetric ciphers vulnerable to Grover search halving security margin to 64 bits",
+      "condition": {
+        "family": "symmetric",
+        "key_size_max": 128
+      },
+      "quantum_exposure": "MEDIUM",
+      "rationale": "Grover's algorithm reduces effective security from 128 to 64 bits. Upgrade to 256 bits recommended."
+    },
+    {
+      "id": "RULE-SYMMETRIC-GROVER-SAFE",
+      "description": "256-bit symmetric ciphers retain >= 128 bits post-quantum security",
+      "condition": {
+        "family": "symmetric",
+        "key_size_min": 256
+      },
+      "quantum_exposure": "LOW",
+      "rationale": "256-bit key provides 128-bit quantum security against Grover's algorithm, satisfying NIST PQC requirements."
+    },
+    {
+      "id": "RULE-HASH-STRONG",
+      "description": "SHA-256 and SHA-3 family hash functions retain adequate quantum collision margin",
+      "condition": {
+        "algorithms": ["SHA-256", "SHA-384", "SHA-512", "SHA-3"]
+      },
+      "quantum_exposure": "LOW",
+      "rationale": "Standard cryptographic hashes of >= 256 bits provide sufficient preimage and collision resistance under quantum algorithms."
+    }
+  ]
+}

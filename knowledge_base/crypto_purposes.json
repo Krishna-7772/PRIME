@@ -1,0 +1,75 @@
+{
+  "version": "1.0.0",
+  "purposes": {
+    "digital_signature": {
+      "display_name": "Digital Signature",
+      "description": "Provides data authenticity, integrity, and non-repudiation.",
+      "pqc_target_primitive": "PQC Digital Signature (ML-DSA / SLH-DSA)",
+      "threat_context": "Vulnerable to forgery once CRQC is available. Long-lived signed contracts, firmware updates, and identity assertions require migration.",
+      "sndl_exposure": "Low (Signatures cannot be retroactively broken to expose secrecy of past data, but future forgery of credentials/updates is critical)"
+    },
+    "key_establishment": {
+      "display_name": "Key Establishment / Key Exchange",
+      "description": "Securely establishes shared secret keys across untrusted channels.",
+      "pqc_target_primitive": "PQC Key Encapsulation Mechanism (ML-KEM)",
+      "threat_context": "IMMEDIATE threat from Store-Now-Decrypt-Later (SNDL) attacks. Encrypted traffic intercepted today can be decrypted once CRQC is operational.",
+      "sndl_exposure": "CRITICAL"
+    },
+    "encryption": {
+      "display_name": "Symmetric / Asymmetric Data Encryption",
+      "description": "Protects confidentiality of sensitive data at rest or in transit.",
+      "pqc_target_primitive": "AES-256 (for symmetric) or ML-KEM/hybrid (for asymmetric envelope)",
+      "threat_context": "If asymmetric (e.g. RSA-OAEP), critical SNDL vulnerability. If symmetric (AES-128), vulnerable to Grover search speedup; upgrade to AES-256.",
+      "sndl_exposure": "High to Critical"
+    },
+    "decryption": {
+      "display_name": "Data Decryption",
+      "description": "Recovers plaintext from ciphertext using corresponding keys.",
+      "pqc_target_primitive": "Corresponding PQC KEM decapsulation or symmetric cipher",
+      "threat_context": "Tied directly to encryption primitive risks.",
+      "sndl_exposure": "High"
+    },
+    "hashing": {
+      "display_name": "Cryptographic Hash Function",
+      "description": "One-way digest generation for integrity, commitment, or indexing.",
+      "pqc_target_primitive": "SHA-256, SHA-384, SHA-512, SHA-3",
+      "threat_context": "Classical collision vulnerabilities (MD5, SHA-1) require immediate hygiene remediation. SHA-2/SHA-3 are quantum-safe.",
+      "sndl_exposure": "Low"
+    },
+    "password_hashing": {
+      "display_name": "Password Hashing / KDF",
+      "description": "Memory-hard, salted key derivation functions for authentication secrets.",
+      "pqc_target_primitive": "Argon2id, scrypt, PBKDF2-HMAC-SHA256",
+      "threat_context": "Quantum computers provide speedup against weak KDFs; memory-hardness remains strong defense.",
+      "sndl_exposure": "Low to Moderate"
+    },
+    "certificate": {
+      "display_name": "Public Key Certificate / X.509",
+      "description": "Binds public keys to entities using digital signatures in PKI.",
+      "pqc_target_primitive": "Composite / Dual-Signature X.509 with ML-DSA",
+      "threat_context": "All certificates with RSA or ECDSA public keys become untrusted under CRQC.",
+      "sndl_exposure": "Moderate (Man-in-the-middle upon CRQC arrival)"
+    },
+    "random_generation": {
+      "display_name": "Cryptographically Secure Pseudorandom Number Generation",
+      "description": "Generates cryptographically unpredictable entropy and keys.",
+      "pqc_target_primitive": "CTR-DRBG with AES-256, HMAC-DRBG with SHA-384",
+      "threat_context": "Must maintain 256-bit internal state to prevent quantum state reconstruction.",
+      "sndl_exposure": "Low"
+    },
+    "protocol_security": {
+      "display_name": "Transport / Protocol Security (TLS/SSH/IPSec)",
+      "description": "Multi-phase cryptographic protocol securing network communications.",
+      "pqc_target_primitive": "Hybrid TLS 1.3 (e.g. X25519MLKEM768)",
+      "threat_context": "Immediate risk to session confidentiality via SNDL.",
+      "sndl_exposure": "CRITICAL"
+    },
+    "unknown": {
+      "display_name": "Unspecified / Inferred Cryptographic Usage",
+      "description": "Cryptographic primitive detected without unambiguous usage context.",
+      "pqc_target_primitive": "Manual Cryptographic Architecture Review Required",
+      "threat_context": "Context-dependent. Requires developer triage.",
+      "sndl_exposure": "Unknown"
+    }
+  }
+}

@@ -1,0 +1,18 @@
+# Python
+backend/venv/
+backend/.venv/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+ecdat.db
+*.db
+backend/ecdat.db
+uploads/
+generated_reports/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+.DS_Store

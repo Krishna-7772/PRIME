@@ -1,0 +1,71 @@
+{
+  "version": "1.0.0",
+  "standards_body": "NIST Post-Quantum Cryptography Standardization Project",
+  "status_date": "2024-08-13 (Finalized FIPS 203, FIPS 204, FIPS 205)",
+  "algorithms": {
+    "ML-KEM": {
+      "standard": "FIPS 203",
+      "formal_name": "Module-Lattice-Based Key-Encapsulation Mechanism",
+      "derivation": "Derived from CRYSTALS-Kyber",
+      "type": "Key Encapsulation Mechanism (KEM)",
+      "primary_use": "Key establishment, general encryption key exchange, TLS 1.3 handshake",
+      "security_levels": {
+        "ML-KEM-512": { "nist_level": 1, "classical_equivalent": "AES-128", "public_key_bytes": 800, "ciphertext_bytes": 768, "shared_secret_bytes": 32 },
+        "ML-KEM-768": { "nist_level": 3, "classical_equivalent": "AES-192", "public_key_bytes": 1184, "ciphertext_bytes": 1088, "shared_secret_bytes": 32, "recommended": true },
+        "ML-KEM-1024": { "nist_level": 5, "classical_equivalent": "AES-256", "public_key_bytes": 1568, "ciphertext_bytes": 1568, "shared_secret_bytes": 32 }
+      },
+      "tradeoffs": {
+        "performance": "Extremely fast key generation, encapsulation, and decapsulation (sub-millisecond)",
+        "overhead": "Public key (1184 B) and ciphertext (1088 B) are significantly larger than X25519 (32 B) or RSA-2048 (256 B)",
+        "mtu_impact": "Fits within standard 1500 MTU for TLS ClientHello/ServerHello when bundled properly"
+      }
+    },
+    "ML-DSA": {
+      "standard": "FIPS 204",
+      "formal_name": "Module-Lattice-Based Digital Signature Algorithm",
+      "derivation": "Derived from CRYSTALS-Dilithium",
+      "type": "Digital Signature",
+      "primary_use": "General purpose digital signatures, certificates, authentication, code signing",
+      "security_levels": {
+        "ML-DSA-44": { "nist_level": 2, "public_key_bytes": 1312, "signature_bytes": 2420 },
+        "ML-DSA-65": { "nist_level": 3, "public_key_bytes": 1952, "signature_bytes": 3309, "recommended": true },
+        "ML-DSA-87": { "nist_level": 5, "public_key_bytes": 2592, "signature_bytes": 4627 }
+      },
+      "tradeoffs": {
+        "performance": "High-speed verification and signing",
+        "overhead": "Signatures are 2.4 KB - 4.6 KB, compared to RSA-2048 (256 B) or ECDSA P-256 (64 B). Requires protocol buffer and MTU re-engineering."
+      }
+    },
+    "SLH-DSA": {
+      "standard": "FIPS 205",
+      "formal_name": "Stateless Hash-Based Digital Signature Algorithm",
+      "derivation": "Derived from SPHINCS+",
+      "type": "Digital Signature",
+      "primary_use": "Conservative digital signatures, long-term trust roots, secure boot, backup if lattice assumptions face theoretical advances",
+      "security_levels": {
+        "SLH-DSA-SHA2-128s": { "nist_level": 1, "public_key_bytes": 32, "signature_bytes": 7856 },
+        "SLH-DSA-SHAKE-128f": { "nist_level": 1, "public_key_bytes": 32, "signature_bytes": 17088 },
+        "SLH-DSA-SHA2-256s": { "nist_level": 5, "public_key_bytes": 64, "signature_bytes": 29792 }
+      },
+      "tradeoffs": {
+        "performance": "Significantly slower signing time and very large signature sizes (8 KB - 30 KB)",
+        "advantage": "Rooted only in standard cryptographic hash functions (SHA-2/SHAKE), extremely conservative security assurance"
+      }
+    },
+    "HYBRID-KEM": {
+      "standard": "IETF Draft / NIST SP 800-227 Recommendation",
+      "formal_name": "Composite / Dual Classical + Post-Quantum Key Exchange",
+      "type": "Hybrid Key Establishment",
+      "primary_use": "Transition phase TLS 1.3, SSH, VPNs (e.g., X25519 + ML-KEM-768)",
+      "advantage": "Guarantees classical security even if lattice math is compromised, while protecting against SNDL today",
+      "recommended": true
+    },
+    "AES-256": {
+      "standard": "FIPS 197",
+      "formal_name": "Advanced Encryption Standard (256-bit key)",
+      "type": "Symmetric Encryption",
+      "primary_use": "Bulk symmetric encryption at rest and in transit",
+      "advantage": "Retains 128-bit quantum security against Grover's algorithm. Already standard and widely accelerated in hardware (AES-NI)."
+    }
+  }
+}

@@ -1,0 +1,31 @@
+# ========================================================
+# Render Blueprint Specification for ECDAT (SIH26164)
+# 1-Click Free Tier Deployment
+# ========================================================
+
+services:
+  # Web Service running unified ECDAT (Backend API + Embedded React UI)
+  - type: web
+    name: ecdat-platform
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "npm --prefix frontend install && npm --prefix frontend run build && pip install -r backend/requirements.txt"
+    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: NODE_VERSION
+        value: 20.10.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ecdat-postgres
+          property: connectionString
+
+databases:
+  # Free PostgreSQL Database on Render
+  - name: ecdat-postgres
+    region: oregon
+    plan: free
+    databaseName: ecdat
+    user: ecdat_admin
