@@ -1,0 +1,44 @@
+{
+  "curves": {
+    "secp256r1": {
+      "canonical_name": "secp256r1",
+      "aliases": ["prime256v1", "NIST P-256", "P-256"],
+      "field_size_bits": 256,
+      "classical_security_bits": 128,
+      "quantum_status": "QUANTUM_VULNERABLE",
+      "threat": "Vulnerable to Shor's algorithm for discrete logarithms on elliptic curves (O(n^3)).",
+      "standard": "FIPS 186-5",
+      "recommended_pqc": "ML-DSA-65 (FIPS 204) for signatures, ML-KEM-768 (FIPS 203) for key exchange"
+    },
+    "secp384r1": {
+      "canonical_name": "secp384r1",
+      "aliases": ["NIST P-384", "P-384"],
+      "field_size_bits": 384,
+      "classical_security_bits": 192,
+      "quantum_status": "QUANTUM_VULNERABLE",
+      "threat": "Vulnerable to Shor's algorithm.",
+      "standard": "FIPS 186-5",
+      "recommended_pqc": "ML-DSA-87 (FIPS 204) or ML-KEM-1024 (FIPS 203)"
+    },
+    "secp521r1": {
+      "canonical_name": "secp521r1",
+      "aliases": ["NIST P-521", "P-521"],
+      "field_size_bits": 521,
+      "classical_security_bits": 256,
+      "quantum_status": "QUANTUM_VULNERABLE",
+      "threat": "Vulnerable to Shor's algorithm.",
+      "standard": "FIPS 186-5",
+      "recommended_pqc": "ML-DSA-87 (FIPS 204)"
+    },
+    "curve25519": {
+      "canonical_name": "curve25519",
+      "aliases": ["X25519", "Ed25519"],
+      "field_size_bits": 255,
+      "classical_security_bits": 128,
+      "quantum_status": "QUANTUM_VULNERABLE",
+      "threat": "Montgomery curve vulnerable to Shor's discrete logarithm attack.",
+      "standard": "RFC 7748 / RFC 8032",
+      "recommended_pqc": "X25519MLKEM768 (RFC 10024 hybrid) or ML-KEM-768 (FIPS 203)"
+    }
+  }
+}

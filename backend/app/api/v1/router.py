@@ -2,7 +2,7 @@ import os
 import shutil
 import zipfile
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session, joinedload
@@ -12,16 +12,23 @@ from app.db.session import get_db
 from app.core.config import settings
 from app.models.entities import (
     Project, Scan, CryptoAsset, Evidence, RiskAssessment,
-    Recommendation, MigrationAssessment, Dependency, Certificate, Application, Report
+    Recommendation, MigrationAssessment, Dependency, Certificate, Application, Report,
+    AgilityAssessment, PolicyViolation, DriftSnapshot, DriftEvent, ValidationRun
 )
 from app.schemas.all_schemas import (
     ProjectCreate, ProjectUpdate, ProjectResponse, ScanResponse,
-    CryptoAssetResponse, DependencyGraphResponse, DashboardOverviewResponse
+    CryptoAssetResponse, DependencyGraphResponse, DashboardOverviewResponse,
+    AgilityAssessmentResponse, PolicyViolationResponse, DriftSnapshotResponse,
+    ValidationBenchmarkRequest, TLSProbeRequest, DeclaredAssetBatch
 )
 from app.services.scan_service import ScanService
 from app.dependency.dependency_mapper import DependencyMapper
 from app.reports.cbom_generator import CBOMGenerator
 from app.reports.html_reporter import HTMLReporter
+from app.reports.sarif_generator import SARIFGenerator
+from app.validation.validation_lab import ValidationLab
+from app.scanners.network.tls_scanner import TLSNetworkScanner
+from app.scanners.cloud.declared_scanner import DeclaredCloudHSMScanner
 
 api_router = APIRouter()
 
@@ -30,9 +37,21 @@ api_router = APIRouter()
 def health_check():
     return {
         "status": "healthy",
-        "service": "ECDAT API",
+        "service": "PRIME - Postquantum Readiness Intelligence and Migration Engine",
         "version": settings.VERSION,
-        "standards": ["NIST FIPS 203 (ML-KEM)", "NIST FIPS 204 (ML-DSA)", "NIST FIPS 205 (SLH-DSA)", "CycloneDX 1.6 CBOM"]
+        "environment": settings.ENVIRONMENT,
+        "problem_statement": settings.PROBLEM_STATEMENT,
+        "organization": settings.ORGANIZATION,
+        "team": settings.TEAM,
+        "standards": [
+            "NIST FIPS 203 (ML-KEM)",
+            "NIST FIPS 204 (ML-DSA)",
+            "NIST FIPS 205 (SLH-DSA)",
+            "NIST CSWP 39upd1 (Crypto Agility)",
+            "CycloneDX 1.7 CBOM",
+            "IETF RFC 10024 (PQ/T Hybrid TLS 1.3)",
+            "SARIF 2.1.0"
+        ]
     }
 
 # --- Projects ---
@@ -103,10 +122,9 @@ def initiate_scan(
         with open(zip_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Unpack zip safely
+        # Unpack zip safely (zip-slip protection)
         try:
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                # Basic zip-slip protection
                 for member in zip_ref.namelist():
                     filename = os.path.basename(member)
                     if not filename: continue
@@ -118,16 +136,13 @@ def initiate_scan(
         except zipfile.BadZipFile:
             raise HTTPException(status_code=400, detail="Invalid zip file.")
     elif repository_path:
-        # Check if local path exists (e.g. demo/bharatpay)
         p = Path(repository_path)
         if not p.is_absolute():
-            # Resolve relative to workspace root
             p = settings.BASE_DIR / repository_path
         if not p.exists():
             raise HTTPException(status_code=400, detail=f"Repository path '{repository_path}' does not exist on disk.")
         target_dir = str(p)
     else:
-        # Default to BharatPay demo
         demo_p = settings.BASE_DIR / "demo" / "bharatpay"
         if demo_p.exists():
             target_dir = str(demo_p)
@@ -158,6 +173,7 @@ def get_project_assets(
     risk: Optional[str] = Query(None),
     library: Optional[str] = Query(None),
     application: Optional[str] = Query(None),
+    confidence_class: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
     query = (
@@ -166,7 +182,8 @@ def get_project_assets(
             joinedload(CryptoAsset.evidence),
             joinedload(CryptoAsset.risk),
             joinedload(CryptoAsset.recommendation),
-            joinedload(CryptoAsset.migration)
+            joinedload(CryptoAsset.migration),
+            joinedload(CryptoAsset.agility)
         )
         .filter(CryptoAsset.project_id == project_id)
     )
@@ -175,12 +192,14 @@ def get_project_assets(
         query = query.filter(CryptoAsset.algorithm.ilike(f"%{algorithm}%"))
     if purpose:
         query = query.filter(CryptoAsset.purpose == purpose)
-    if application:
-        query = query.filter(CryptoAsset.application.ilike(f"%{application}%"))
     if library:
         query = query.filter(CryptoAsset.library.ilike(f"%{library}%"))
+    if application:
+        query = query.filter(CryptoAsset.application.ilike(f"%{application}%"))
+    if confidence_class:
+        query = query.filter(CryptoAsset.confidence_classification == confidence_class)
 
-    assets = query.order_by(CryptoAsset.asset_id).all()
+    assets = query.all()
 
     if risk:
         assets = [a for a in assets if a.risk and a.risk.overall_risk.upper() == risk.upper()]
@@ -195,25 +214,180 @@ def get_asset_detail(asset_id: str, db: Session = Depends(get_db)):
             joinedload(CryptoAsset.evidence),
             joinedload(CryptoAsset.risk),
             joinedload(CryptoAsset.recommendation),
-            joinedload(CryptoAsset.migration)
+            joinedload(CryptoAsset.migration),
+            joinedload(CryptoAsset.agility)
         )
-        .filter((CryptoAsset.id == asset_id) | (CryptoAsset.asset_id == asset_id))
+        .filter(CryptoAsset.id == asset_id)
         .first()
     )
     if not asset:
-        raise HTTPException(status_code=404, detail="Crypto Asset not found")
+        raise HTTPException(status_code=404, detail="Cryptographic Asset not found")
     return asset
 
 # --- Dependency Graph ---
+@api_router.get("/projects/{project_id}/graph", response_model=DependencyGraphResponse)
 @api_router.get("/projects/{project_id}/dependencies", response_model=DependencyGraphResponse)
 def get_dependency_graph(project_id: str, db: Session = Depends(get_db)):
-    deps = db.query(Dependency).filter(Dependency.project_id == project_id).all()
-    mapper = DependencyMapper()
-    return mapper.format_for_react_flow(deps)
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
 
-# --- Real Live Dashboard ---
+    dependencies = db.query(Dependency).filter(Dependency.project_id == project_id).all()
+    assets = (
+        db.query(CryptoAsset)
+        .options(joinedload(CryptoAsset.risk))
+        .filter(CryptoAsset.project_id == project_id)
+        .all()
+    )
+    certificates = db.query(Certificate).join(Scan).filter(Scan.project_id == project_id).all()
+
+    mapper = DependencyMapper()
+    return mapper.format_for_react_flow(dependencies, assets, certificates)
+
+# --- Agility Assessment ---
+@api_router.get("/projects/{project_id}/agility")
+def get_project_agility(project_id: str, db: Session = Depends(get_db)):
+    assets = (
+        db.query(CryptoAsset)
+        .options(joinedload(CryptoAsset.agility))
+        .filter(CryptoAsset.project_id == project_id)
+        .all()
+    )
+    
+    agilities = [a.agility for a in assets if a.agility]
+    if not agilities:
+        return {"average_score": 0.0, "rating": "UNKNOWN", "dimensions": []}
+
+    avg_score = round(sum(ag.overall_agility_score for ag in agilities) / len(agilities), 2)
+    
+    c1_avg = round(sum(ag.c1_operation_coupling for ag in agilities) / len(agilities), 2)
+    c2_avg = round(sum(ag.c2_creation_coupling for ag in agilities) / len(agilities), 2)
+    c3_avg = round(sum(ag.c3_provider_coupling for ag in agilities) / len(agilities), 2)
+    c4_avg = round(sum(ag.c4_decoupling_mechanism for ag in agilities) / len(agilities), 2)
+    c5_avg = round(sum(ag.c5_decoupling_authority for ag in agilities) / len(agilities), 2)
+    e1_avg = round(sum(ag.e1_algorithm_migration for ag in agilities) / len(agilities), 2)
+    e2_avg = round(sum(ag.e2_provider_migration for ag in agilities) / len(agilities), 2)
+
+    rating = "MODERATE"
+    if avg_score <= 1.2: rating = "VERY_LOW"
+    elif avg_score <= 2.0: rating = "LOW"
+    elif avg_score <= 2.8: rating = "MODERATE"
+    elif avg_score <= 3.5: rating = "HIGH"
+    else: rating = "EXCELLENT"
+
+    return {
+        "average_score": avg_score,
+        "rating": rating,
+        "total_assets_assessed": len(agilities),
+        "radar_data": [
+            {"dimension": "C1: Operation Coupling", "score": c1_avg, "fullMark": 4.0},
+            {"dimension": "C2: Creation Coupling", "score": c2_avg, "fullMark": 4.0},
+            {"dimension": "C3: Provider Coupling", "score": c3_avg, "fullMark": 4.0},
+            {"dimension": "C4: Decoupling Mechanism", "score": c4_avg, "fullMark": 4.0},
+            {"dimension": "C5: Decoupling Authority", "score": c5_avg, "fullMark": 4.0},
+            {"dimension": "E1: Algorithm Migration", "score": e1_avg, "fullMark": 4.0},
+            {"dimension": "E2: Provider Migration", "score": e2_avg, "fullMark": 4.0}
+        ]
+    }
+
+# --- Cryptographic Drift ---
+@api_router.get("/projects/{project_id}/drift", response_model=List[DriftSnapshotResponse])
+def get_project_drift(project_id: str, db: Session = Depends(get_db)):
+    snapshots = (
+        db.query(DriftSnapshot)
+        .options(joinedload(DriftSnapshot.events))
+        .filter(DriftSnapshot.project_id == project_id)
+        .order_by(desc(DriftSnapshot.created_at))
+        .all()
+    )
+    return snapshots
+
+# --- Policy Violations ---
+@api_router.get("/projects/{project_id}/policies/violations", response_model=List[PolicyViolationResponse])
+def get_policy_violations(project_id: str, db: Session = Depends(get_db)):
+    violations = (
+        db.query(PolicyViolation)
+        .join(Scan)
+        .filter(Scan.project_id == project_id)
+        .order_by(desc(PolicyViolation.created_at))
+        .all()
+    )
+    return violations
+
+# --- Migration Validation Lab Benchmark ---
+@api_router.post("/validation/benchmark")
+def run_validation_benchmark(req: ValidationBenchmarkRequest):
+    if req.benchmark_type == "KEY_EXCHANGE":
+        result = ValidationLab.run_key_exchange_benchmark(
+            classical_algo=req.classical_algo,
+            candidate_pqc=req.candidate_pqc
+        )
+    else:
+        result = ValidationLab.run_asymmetric_benchmark(
+            classical_algo=req.classical_algo,
+            candidate_pqc=req.candidate_pqc
+        )
+    return result
+
+# --- Network TLS Scanner (with SSRF protection) ---
+@api_router.post("/scanners/network/tls")
+def probe_tls_endpoint(req: TLSProbeRequest):
+    scanner = TLSNetworkScanner()
+    result = scanner.probe_endpoint(req.host, req.port)
+    return result
+
+# --- Declared Cloud/HSM Ingestion ---
+@api_router.post("/projects/{project_id}/assets/declared")
+def ingest_declared_assets(project_id: str, batch: DeclaredAssetBatch, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    scanner = DeclaredCloudHSMScanner()
+    findings = scanner.parse_declared_inventory([item.model_dump() for item in batch.items])
+
+    latest_scan = (
+        db.query(Scan)
+        .filter(Scan.project_id == project_id)
+        .order_by(desc(Scan.started_at))
+        .first()
+    )
+    if not latest_scan:
+        latest_scan = Scan(project_id=project_id, target_type="DECLARED_INVENTORY", status="COMPLETED")
+        db.add(latest_scan)
+        db.commit()
+        db.refresh(latest_scan)
+
+    created = []
+    for f in findings:
+        asset = CryptoAsset(
+            asset_id=f"CLOUD-{len(project.assets)+1:04d}",
+            project_id=project_id,
+            scan_id=latest_scan.id,
+            algorithm=f.algorithm,
+            family=f.family,
+            key_size=f.key_size,
+            purpose=f.purpose,
+            purpose_confidence="CONFIRMED",
+            confidence_classification="MANUAL",
+            provenance="DECLARED",
+            quantum_status="QUANTUM_VULNERABLE" if f.family == "asymmetric" else "QUANTUM_RESISTANT",
+            owner=f.metadata.get("owner", "Cloud Team"),
+            application=f.application,
+            component=f.component,
+            file_path=f.file_path,
+            detection_method=f.detection_method,
+            confidence=1.0
+        )
+        db.add(asset)
+        created.append(asset)
+
+    db.commit()
+    return {"message": f"Successfully ingested {len(created)} declared cloud/HSM cryptographic assets."}
+
+# --- Dashboard Overview ---
 @api_router.get("/projects/{project_id}/dashboard", response_model=DashboardOverviewResponse)
-def get_project_dashboard(project_id: str, db: Session = Depends(get_db)):
+def get_dashboard_overview(project_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -221,10 +395,10 @@ def get_project_dashboard(project_id: str, db: Session = Depends(get_db)):
     assets = (
         db.query(CryptoAsset)
         .options(
-            joinedload(CryptoAsset.evidence),
             joinedload(CryptoAsset.risk),
             joinedload(CryptoAsset.recommendation),
-            joinedload(CryptoAsset.migration)
+            joinedload(CryptoAsset.evidence),
+            joinedload(CryptoAsset.agility)
         )
         .filter(CryptoAsset.project_id == project_id)
         .all()
@@ -242,11 +416,13 @@ def get_project_dashboard(project_id: str, db: Session = Depends(get_db)):
     purpose_dist = {}
     algo_dist = {}
 
+    agilities = []
     for a in assets:
-        # Algo dist
         algo_dist[a.algorithm] = algo_dist.get(a.algorithm, 0) + 1
-        # Purpose dist
         purpose_dist[a.purpose] = purpose_dist.get(a.purpose, 0) + 1
+
+        if a.agility:
+            agilities.append(a.agility.overall_agility_score)
 
         if a.risk:
             r = a.risk.overall_risk.upper()
@@ -263,8 +439,25 @@ def get_project_dashboard(project_id: str, db: Session = Depends(get_db)):
 
     apps = {a.application for a in assets if a.application}
     certs_count = len([a for a in assets if a.purpose == "certificate"])
+    avg_agility = round(sum(agilities) / len(agilities), 2) if agilities else 2.0
 
-    # Top migration priorities sorted by risk_score desc
+    # Policy violations count
+    violations_count = (
+        db.query(PolicyViolation)
+        .join(Scan)
+        .filter(Scan.project_id == project_id)
+        .count()
+    )
+
+    # Latest scan coverage
+    latest_scan = (
+        db.query(Scan)
+        .filter(Scan.project_id == project_id, Scan.status == "COMPLETED")
+        .order_by(desc(Scan.started_at))
+        .first()
+    )
+    coverage = latest_scan.coverage_percentage if latest_scan else 100.0
+
     sorted_assets = sorted(
         assets,
         key=lambda x: (x.risk.risk_score if x.risk else 0),
@@ -290,6 +483,9 @@ def get_project_dashboard(project_id: str, db: Session = Depends(get_db)):
         "applications_affected": len(apps),
         "certificates_count": certs_count,
         "mosca_at_risk_count": mosca_at_risk_count,
+        "average_agility_score": avg_agility,
+        "coverage_percentage": coverage,
+        "policy_violations_count": violations_count,
         "risk_distribution": risk_dist,
         "purpose_distribution": purpose_dist,
         "algorithm_distribution": algo_dist,
@@ -297,7 +493,7 @@ def get_project_dashboard(project_id: str, db: Session = Depends(get_db)):
         "recent_scans": recent_scans
     }
 
-# --- CBOM Export ---
+# --- CycloneDX 1.7 CBOM Export ---
 @api_router.get("/projects/{project_id}/cbom")
 def export_cbom(project_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -314,13 +510,38 @@ def export_cbom(project_id: str, db: Session = Depends(get_db)):
         .filter(CryptoAsset.project_id == project_id)
         .all()
     )
+    certificates = db.query(Certificate).join(Scan).filter(Scan.project_id == project_id).all()
 
     generator = CBOMGenerator()
-    cbom_data = generator.generate_cbom(project, assets)
+    cbom_data = generator.generate_cbom(project, assets, certificates)
     return JSONResponse(
         content=cbom_data,
         headers={
-            "Content-Disposition": f"attachment; filename=ecdat_cbom_{project.name.lower().replace(' ', '_')}.json"
+            "Content-Disposition": f"attachment; filename=prime_cbom_1_7_{project.name.lower().replace(' ', '_')}.json"
+        }
+    )
+
+# --- SARIF 2.1.0 Export ---
+@api_router.get("/projects/{project_id}/sarif")
+def export_sarif(project_id: str, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    latest_scan = (
+        db.query(Scan)
+        .filter(Scan.project_id == project_id)
+        .order_by(desc(Scan.started_at))
+        .first()
+    )
+    if not latest_scan:
+        raise HTTPException(status_code=404, detail="No scan findings available to generate SARIF report.")
+
+    sarif_data = SARIFGenerator.generate_sarif(project, latest_scan)
+    return JSONResponse(
+        content=sarif_data,
+        headers={
+            "Content-Disposition": f"attachment; filename=prime_findings_{project.name.lower().replace(' ', '_')}.sarif"
         }
     )
 
@@ -336,7 +557,8 @@ def export_html_report(project_id: str, db: Session = Depends(get_db)):
         .options(
             joinedload(CryptoAsset.evidence),
             joinedload(CryptoAsset.risk),
-            joinedload(CryptoAsset.recommendation)
+            joinedload(CryptoAsset.recommendation),
+            joinedload(CryptoAsset.agility)
         )
         .filter(CryptoAsset.project_id == project_id)
         .all()

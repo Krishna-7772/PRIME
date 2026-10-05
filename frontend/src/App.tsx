@@ -11,6 +11,10 @@ import { DashboardView } from './components/DashboardView';
 import { InventoryView } from './components/InventoryView';
 import { DependencyMapView } from './components/DependencyMapView';
 import { MigrationImpactView } from './components/MigrationImpactView';
+import { ValidationLabView } from './components/ValidationLabView';
+import { AgilityRadarView } from './components/AgilityRadarView';
+import { DriftView } from './components/DriftView';
+import { PolicyComplianceView } from './components/PolicyComplianceView';
 import { AssetDetailModal } from './components/AssetDetailModal';
 import { ScanModal } from './components/ScanModal';
 import { NewProjectModal } from './components/NewProjectModal';
@@ -19,6 +23,10 @@ import {
   Database,
   GitFork,
   Layers,
+  Compass,
+  Activity,
+  GitCompare,
+  ShieldCheck,
   Loader2,
   AlertTriangle,
   RefreshCw
@@ -27,7 +35,9 @@ import {
 export const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'inventory' | 'dependencies' | 'migration'>('dashboard');
+  const [currentTab, setCurrentTab] = useState<
+    'dashboard' | 'inventory' | 'dependencies' | 'migration' | 'agility' | 'validation' | 'drift' | 'policy'
+  >('dashboard');
 
   const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(null);
   const [assets, setAssets] = useState<CryptoAsset[]>([]);
@@ -62,7 +72,7 @@ export const App: React.FC = () => {
         setActiveProject(projs[0]);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to connect to ECDAT backend.');
+      setError(err.message || 'Failed to connect to PRIME backend.');
     } finally {
       setIsLoading(false);
     }
@@ -99,7 +109,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0f1d] text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#070c1a] text-slate-100 flex flex-col font-sans">
       
       {/* Top Header */}
       <Header
@@ -111,54 +121,102 @@ export const App: React.FC = () => {
       />
 
       {/* Navigation Sub-header / Tabs */}
-      <div className="bg-[#0f172a] border-b border-[#1e293b] px-6 py-2 flex items-center justify-between">
-        <nav className="flex space-x-1" aria-label="Tabs">
+      <div className="bg-[#0b1329] border-b border-[#1e293b] px-6 py-2 flex flex-wrap items-center justify-between gap-3">
+        <nav className="flex flex-wrap items-center gap-1.5" aria-label="Tabs">
           <button
             onClick={() => setCurrentTab('dashboard')}
-            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
               currentTab === 'dashboard'
-                ? 'bg-blue-900/50 text-cyan-400 border border-blue-700/60 shadow-sm'
+                ? 'bg-blue-900/60 text-cyan-300 border border-blue-700/80 shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
-            <LayoutDashboard className="w-4 h-4" />
-            <span>Overview &amp; Mosca Risk</span>
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            <span>Overview &amp; Mosca</span>
           </button>
 
           <button
             onClick={() => setCurrentTab('inventory')}
-            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
               currentTab === 'inventory'
-                ? 'bg-blue-900/50 text-cyan-400 border border-blue-700/60 shadow-sm'
+                ? 'bg-blue-900/60 text-cyan-300 border border-blue-700/80 shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
-            <Database className="w-4 h-4" />
-            <span>Cryptographic Inventory ({assets.length})</span>
+            <Database className="w-3.5 h-3.5" />
+            <span>Inventory ({assets.length})</span>
           </button>
 
           <button
             onClick={() => setCurrentTab('dependencies')}
-            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
               currentTab === 'dependencies'
-                ? 'bg-blue-900/50 text-cyan-400 border border-blue-700/60 shadow-sm'
+                ? 'bg-blue-900/60 text-cyan-300 border border-blue-700/80 shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
-            <GitFork className="w-4 h-4" />
-            <span>Dependency Map</span>
+            <GitFork className="w-3.5 h-3.5" />
+            <span>Topology Graph</span>
           </button>
 
           <button
             onClick={() => setCurrentTab('migration')}
-            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
               currentTab === 'migration'
-                ? 'bg-blue-900/50 text-cyan-400 border border-blue-700/60 shadow-sm'
+                ? 'bg-blue-900/60 text-cyan-300 border border-blue-700/80 shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
-            <Layers className="w-4 h-4" />
-            <span>Migration Impact &amp; Blast Radius</span>
+            <Layers className="w-3.5 h-3.5" />
+            <span>Blast Radius</span>
+          </button>
+
+          <button
+            onClick={() => setCurrentTab('agility')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              currentTab === 'agility'
+                ? 'bg-blue-900/60 text-cyan-300 border border-blue-700/80 shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5" />
+            <span>Crypto Agility</span>
+          </button>
+
+          <button
+            onClick={() => setCurrentTab('validation')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              currentTab === 'validation'
+                ? 'bg-blue-900/60 text-cyan-300 border border-blue-700/80 shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Validation Lab</span>
+          </button>
+
+          <button
+            onClick={() => setCurrentTab('drift')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              currentTab === 'drift'
+                ? 'bg-blue-900/60 text-cyan-300 border border-blue-700/80 shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <GitCompare className="w-3.5 h-3.5 text-purple-400" />
+            <span>Drift &amp; Timeline</span>
+          </button>
+
+          <button
+            onClick={() => setCurrentTab('policy')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              currentTab === 'policy'
+                ? 'bg-blue-900/60 text-cyan-300 border border-blue-700/80 shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Policies</span>
           </button>
         </nav>
 
@@ -184,13 +242,13 @@ export const App: React.FC = () => {
         {isLoading && !dashboardData ? (
           <div className="flex flex-col items-center justify-center py-24 space-y-3">
             <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-            <div className="text-sm font-semibold text-slate-400">Loading cryptographic telemetry from ECDAT engine...</div>
+            <div className="text-sm font-semibold text-slate-400">Loading cryptographic intelligence from PRIME engine...</div>
           </div>
         ) : error ? (
           <div className="bg-red-950/40 border border-red-800 p-6 rounded-xl flex items-center space-x-3 text-sm text-red-300">
             <AlertTriangle className="w-6 h-6 text-red-400 shrink-0" />
             <div>
-              <div className="font-bold text-red-200">ECDAT Connection Warning</div>
+              <div className="font-bold text-red-200">PRIME Connection Notice</div>
               <div className="text-xs text-red-400 mt-1">{error}</div>
             </div>
           </div>
@@ -198,13 +256,13 @@ export const App: React.FC = () => {
           <div className="bg-[#111827] border border-slate-800 rounded-xl p-12 text-center space-y-3">
             <div className="text-lg font-bold text-white">No Monitored Projects Initialized</div>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
-              Create an enterprise project or launch a discovery scan to begin inventorying cryptographic assets.
+              Create an enterprise project or select a repository to initiate cryptographic AST and dependency analysis.
             </p>
             <button
               onClick={() => setIsNewProjectModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition"
+              className="mt-2 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs px-4 py-2 rounded-lg"
             >
-              Create Project
+              Initialize Project
             </button>
           </div>
         ) : (
@@ -213,58 +271,70 @@ export const App: React.FC = () => {
               <DashboardView
                 overview={dashboardData}
                 activeProject={activeProject}
-                onSelectAsset={(a) => setSelectedAsset(a)}
-                onNavigateToTab={(tab) => setCurrentTab(tab as any)}
+                onSelectAsset={(asset) => setSelectedAsset(asset)}
+                onNavigateToTab={(tab: any) => setCurrentTab(tab)}
               />
             )}
 
             {currentTab === 'inventory' && (
               <InventoryView
                 assets={assets}
-                onSelectAsset={(a) => setSelectedAsset(a)}
+                onSelectAsset={(asset) => setSelectedAsset(asset)}
               />
             )}
 
             {currentTab === 'dependencies' && (
               <DependencyMapView
                 graph={dependencyGraph}
-                onSelectNode={(nodeId) => {
-                  const match = assets.find((a) => a.asset_id === nodeId || a.algorithm === nodeId);
-                  if (match) setSelectedAsset(match);
-                }}
               />
             )}
 
             {currentTab === 'migration' && (
               <MigrationImpactView
                 assets={assets}
-                onSelectAsset={(a) => setSelectedAsset(a)}
+                onSelectAsset={(asset) => setSelectedAsset(asset)}
               />
+            )}
+
+            {currentTab === 'agility' && (
+              <AgilityRadarView activeProject={activeProject} />
+            )}
+
+            {currentTab === 'validation' && (
+              <ValidationLabView />
+            )}
+
+            {currentTab === 'drift' && (
+              <DriftView activeProject={activeProject} />
+            )}
+
+            {currentTab === 'policy' && (
+              <PolicyComplianceView activeProject={activeProject} />
             )}
           </>
         )}
 
       </main>
 
-      {/* Footer */}
-      <footer className="bg-[#0b1120] border-t border-[#1e293b] px-6 py-4 text-xs text-slate-500 flex flex-wrap items-center justify-between">
-        <div>
-          <strong>ECDAT</strong> &bull; National Technical Research Organisation (NTRO) &bull; SIH26164 Team PRAYAS
-        </div>
-        <div className="flex items-center space-x-4">
-          <span>Standards: FIPS 203 (ML-KEM) &bull; FIPS 204 (ML-DSA) &bull; FIPS 205 (SLH-DSA)</span>
-          <span className="text-slate-600">&bull;</span>
-          <span>CycloneDX 1.6 CBOM</span>
-        </div>
-      </footer>
+      {/* Asset Detail / Code Evidence Inspector Modal */}
+      {selectedAsset && (
+        <AssetDetailModal
+          asset={selectedAsset}
+          onClose={() => setSelectedAsset(null)}
+        />
+      )}
 
-      {/* Modals */}
-      <AssetDetailModal
-        asset={selectedAsset}
-        onClose={() => setSelectedAsset(null)}
-      />
+      {/* New Project Modal */}
+      {isNewProjectModalOpen && (
+        <NewProjectModal
+          isOpen={isNewProjectModalOpen}
+          onClose={() => setIsNewProjectModalOpen(false)}
+          onProjectCreated={handleProjectCreated}
+        />
+      )}
 
-      {activeProject && (
+      {/* Trigger Scan Modal */}
+      {isScanModalOpen && activeProject && (
         <ScanModal
           project={activeProject}
           isOpen={isScanModalOpen}
@@ -272,12 +342,6 @@ export const App: React.FC = () => {
           onScanComplete={handleScanComplete}
         />
       )}
-
-      <NewProjectModal
-        isOpen={isNewProjectModalOpen}
-        onClose={() => setIsNewProjectModalOpen(false)}
-        onProjectCreated={handleProjectCreated}
-      />
 
     </div>
   );

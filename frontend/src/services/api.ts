@@ -3,7 +3,10 @@ import {
   CryptoAsset,
   Scan,
   DependencyGraph,
-  DashboardOverview
+  DashboardOverview,
+  DriftSnapshot,
+  PolicyViolation,
+  ValidationBenchmarkResult
 } from '../types';
 
 const API_BASE = '/api/v1';
@@ -59,6 +62,7 @@ export async function fetchAssets(
     risk?: string;
     library?: string;
     application?: string;
+    confidence_class?: string;
   }
 ): Promise<CryptoAsset[]> {
   const params = new URLSearchParams();
@@ -67,6 +71,7 @@ export async function fetchAssets(
   if (filters?.risk) params.append('risk', filters.risk);
   if (filters?.library) params.append('library', filters.library);
   if (filters?.application) params.append('application', filters.application);
+  if (filters?.confidence_class) params.append('confidence_class', filters.confidence_class);
 
   const res = await fetch(`${API_BASE}/projects/${projectId}/assets?${params.toString()}`);
   if (!res.ok) throw new Error('Failed to fetch crypto assets');
@@ -91,8 +96,58 @@ export async function fetchDashboard(projectId: string): Promise<DashboardOvervi
   return res.json();
 }
 
+export async function fetchProjectAgility(projectId: string) {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/agility`);
+  if (!res.ok) throw new Error('Failed to fetch agility profile');
+  return res.json();
+}
+
+export async function fetchProjectDrift(projectId: string): Promise<DriftSnapshot[]> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/drift`);
+  if (!res.ok) throw new Error('Failed to fetch drift snapshots');
+  return res.json();
+}
+
+export async function fetchPolicyViolations(projectId: string): Promise<PolicyViolation[]> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/policies/violations`);
+  if (!res.ok) throw new Error('Failed to fetch policy violations');
+  return res.json();
+}
+
+export async function runValidationBenchmark(
+  benchmarkType: 'ASYMMETRIC' | 'KEY_EXCHANGE',
+  classicalAlgo: string,
+  candidatePqc: string
+): Promise<ValidationBenchmarkResult> {
+  const res = await fetch(`${API_BASE}/validation/benchmark`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      benchmark_type: benchmarkType,
+      classical_algo: classicalAlgo,
+      candidate_pqc: candidatePqc
+    })
+  });
+  if (!res.ok) throw new Error('Validation benchmark execution failed');
+  return res.json();
+}
+
+export async function probeTLS(host: string, port: number = 443) {
+  const res = await fetch(`${API_BASE}/scanners/network/tls`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ host, port })
+  });
+  if (!res.ok) throw new Error('TLS probe request failed');
+  return res.json();
+}
+
 export function getCBOMDownloadUrl(projectId: string): string {
   return `${API_BASE}/projects/${projectId}/cbom`;
+}
+
+export function getSARIFDownloadUrl(projectId: string): string {
+  return `${API_BASE}/projects/${projectId}/sarif`;
 }
 
 export function getReportDownloadUrl(projectId: string): string {

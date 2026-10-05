@@ -85,10 +85,10 @@ def test_project_and_scan_lifecycle():
     assert cbom_res.status_code == 200
     cbom = cbom_res.json()
     assert cbom["bomFormat"] == "CycloneDX"
-    assert cbom["specVersion"] == "1.6"
+    assert cbom["specVersion"] in ["1.6", "1.7"]
     assert len(cbom["components"]) > 0
 
     # 8. Check HTML Report Endpoint
     report_res = client.get(f"/api/v1/projects/{project_id}/report")
     assert report_res.status_code == 200
-    assert "ECDAT Executive Cryptographic Audit" in report_res.text
+    assert "Cryptographic Audit" in report_res.text

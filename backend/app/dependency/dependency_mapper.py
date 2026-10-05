@@ -80,7 +80,12 @@ class DependencyMapper:
 
         return deps
 
-    def format_for_react_flow(self, dependencies: List[Dependency]) -> Dict[str, Any]:
+    def format_for_react_flow(
+        self,
+        dependencies: List[Dependency],
+        assets: Optional[List[CryptoAsset]] = None,
+        certificates: Optional[List[Any]] = None
+    ) -> Dict[str, Any]:
         """
         Converts list of dependencies into React Flow nodes and edges layout with positions.
         """

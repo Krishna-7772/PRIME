@@ -11,12 +11,19 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "ECDAT - Enterprise Cryptographic Discovery & Analysis Tool"
+    PROJECT_NAME: str = "PRIME - Postquantum Readiness Intelligence and Migration Engine"
+    TAGLINE: str = "Evidence-driven cryptographic intelligence for post-quantum migration readiness"
+    PROBLEM_STATEMENT: str = "SIH26164"
+    ORGANIZATION: str = "National Technical Research Organisation (NTRO)"
+    TEAM: str = "PRAYAS"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     
+    # Environment mode: LOCAL / AIR-GAPPED FRIENDLY
+    ENVIRONMENT: str = "LOCAL / AIR-GAPPED"
+    
     # Database: Default to SQLite for zero-config startup, supports PostgreSQL via env
-    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'backend' / 'ecdat.db'}")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'backend' / 'prime.db'}")
     
     # Knowledge Base Path
     KNOWLEDGE_BASE_DIR: Path = KB_DIR
@@ -27,6 +34,9 @@ class Settings(BaseSettings):
     
     # Mosca Theorem defaults
     DEFAULT_QUANTUM_HORIZON_YEARS: float = 10.0
+    
+    # SSRF Protection: Allowed domains/IPs for network scanning
+    ALLOWED_SCAN_TARGETS: list[str] = ["localhost", "127.0.0.1", "demo.internal"]
     
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "*"]

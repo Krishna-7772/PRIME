@@ -1,0 +1,83 @@
+{
+  "framework": "NIST CSWP 39upd1 / Rameshan & Messmer (2026)",
+  "description": "Cryptographic Agility Assessment Framework across 7 core dimensions",
+  "dimensions": {
+    "C1": {
+      "name": "Operation Coupling",
+      "description": "Degree to which cryptographic operations (signing, encrypting, hashing) are hardcoded at invocation call sites.",
+      "levels": {
+        "0": "Hardcoded algorithm and parameter calls directly scattered across business logic functions.",
+        "1": "Calls use direct algorithm classes but reference localized utility helper functions.",
+        "2": "Cryptographic operations invoke service-level abstraction wrappers with fixed parameter sets.",
+        "3": "Operations use generic crypto facades/interfaces where algorithm is passed via method parameters.",
+        "4": "Fully decoupled: business logic consumes domain-level security intents (e.g. secure_payload, verify_identity) without referencing algorithms."
+      }
+    },
+    "C2": {
+      "name": "Creation Coupling",
+      "description": "How cryptographic keys, certificates, and cipher contexts are instantiated.",
+      "levels": {
+        "0": "Keys and contexts are directly instantiated naming concrete algorithms (e.g., rsa.generate_private_key).",
+        "1": "Direct instantiation isolated to a dedicated module but without parameterized factory.",
+        "2": "Factory pattern used with hardcoded switch cases for supported algorithms.",
+        "3": "Dynamic factory pattern using service providers or dependency injection with external configuration.",
+        "4": "Full KMS / HSM / PKCS#11 key abstraction where key handles are referenced without algorithmic binding in source."
+      }
+    },
+    "C3": {
+      "name": "Provider Coupling",
+      "description": "Coupling to underlying cryptographic library or hardware provider implementation.",
+      "levels": {
+        "0": "Direct vendor/library proprietary API imports tightly coupled throughout codebase (e.g. proprietary C extensions).",
+        "1": "Coupled to a standard platform library (e.g., Python cryptography, Node.js crypto, Java JCA) with direct class imports.",
+        "2": "Standard library wrapped behind internal application adapters.",
+        "3": "Pluggable provider architecture allowing provider swap via standard interfaces (e.g., JCA Security.addProvider).",
+        "4": "Hardware-agnostic and provider-agnostic abstraction supporting transparent HSM/TPM/Software failover."
+      }
+    },
+    "C4": {
+      "name": "Decoupling Mechanism",
+      "description": "Mechanism required to transition to a new algorithm or parameter set.",
+      "levels": {
+        "0": "Full code rewrite, re-compilation, and database schema migration required.",
+        "1": "Code change limited to central constants/configuration classes, but requires recompilation and redeployment.",
+        "2": "Static configuration file change (e.g., YAML/JSON/ENV) requiring service restart.",
+        "3": "Dynamic runtime configuration reloadable via hot-reload/API without service restart.",
+        "4": "Dynamic policy-driven negotiation where client and server autonomously negotiate supported PQC/classical algorithms."
+      }
+    },
+    "C5": {
+      "name": "Decoupling Authority",
+      "description": "Who or what has authority to modify cryptographic algorithms and posture.",
+      "levels": {
+        "0": "Individual developer discretion at code write time with no centralized policy enforcement.",
+        "1": "Ad-hoc code review process without automated policy checks.",
+        "2": "Development team leads control configuration files per service.",
+        "3": "Centralized enterprise security configuration repository with automated CI/CD policy linting.",
+        "4": "Centralized enterprise cryptographic policy engine with real-time posture enforcement and automated migration orchestration."
+      }
+    },
+    "E1": {
+      "name": "Algorithm Migration Capability",
+      "description": "Capability of the system data structures and protocols to accommodate PQC algorithm characteristics (e.g., larger public keys and ciphertexts).",
+      "levels": {
+        "0": "Fixed buffer sizes, strict database column limits (e.g. VARCHAR(256)), or rigid wire protocols that break with large PQC keys.",
+        "1": "Variable buffer sizes in memory, but serialized protocol formats or database schemas enforce rigid length constraints.",
+        "2": "Database supports arbitrary blobs, but network transport/API schemas (e.g. HTTP headers) enforce size restrictions.",
+        "3": "Data structures and network transport accommodate large public keys (e.g. ML-KEM-768: 1184 bytes, ML-DSA-65: 1952 bytes) with minor adjustments.",
+        "4": "Fully protocol-agile: supports hybrid and standalone PQC key exchange/signatures with transparent chunking and parameter negotiation."
+      }
+    },
+    "E2": {
+      "name": "Provider Migration Capability",
+      "description": "Readiness to switch or augment underlying cryptographic providers (e.g. adding liboqs, Bouncy Castle PQC, or AWS KMS PQC).",
+      "levels": {
+        "0": "Tightly bound to a single legacy provider that offers no PQC roadmap.",
+        "1": "Using standard provider that currently lacks PQC, requiring library replacement for migration.",
+        "2": "Using standard provider with planned PQC support in upcoming versions (e.g., OpenSSL 3.x, Bouncy Castle 1.78+).",
+        "3": "Dual-provider architecture or wrapper capable of binding a PQC sidecar / hybrid provider alongside classical.",
+        "4": "Modular plug-and-play provider architecture with verified compatibility across classical, hybrid, and NIST PQC FIPS standard libraries."
+      }
+    }
+  }
+}

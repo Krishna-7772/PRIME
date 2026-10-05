@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -10,34 +11,15 @@ from app.api.v1.router import api_router
 from app.models.entities import Project
 from app.services.scan_service import ScanService
 
-# Create database tables
+# Ensure database tables are created
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version=settings.VERSION,
-    description="Enterprise Cryptographic Discovery & Analysis Tool for Post-Quantum Cryptography Migration (NTRO SIH26164)",
-    docs_url="/docs",
-    redoc_url="/redoc"
-)
-
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include v1 API Router
-app.include_router(api_router, prefix=settings.API_V1_STR)
-
-@app.on_event("startup")
-def startup_seed_demo():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """
+    Lifespan context manager for startup and shutdown events.
     On first boot, if no projects exist in the database, automatically
-    create BharatPay Demo Enterprise and run the real scanner on demo/bharatpay.
+    creates the BharatPay Demo Enterprise and executes a real scanner analysis.
     """
     db = SessionLocal()
     try:
@@ -45,7 +27,7 @@ def startup_seed_demo():
         if not existing:
             demo_path = settings.BASE_DIR / "demo" / "bharatpay"
             if demo_path.exists():
-                print("Seeding initial BharatPay Demo Enterprise with real scan analysis...")
+                print("Seeding BharatPay Demo Enterprise with real cryptographic scan analysis...")
                 proj = Project(
                     name="BharatPay Demo Enterprise",
                     description="Indian Digital Payments Platform with core banking integrations, token vaults, and hybrid TLS gateways.",
@@ -71,24 +53,44 @@ def startup_seed_demo():
         print(f"Startup demo seed notice: {e}")
     finally:
         db.close()
+    
+    yield
 
-# Check for production frontend build (e.g. for single-service free cloud deployment)
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    version=settings.VERSION,
+    description="Evidence-driven cryptographic intelligence for post-quantum migration readiness (NTRO SIH26164 Team PRAYAS)",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include v1 API Router
+app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Check for production frontend build (single-service hosting support)
 FRONTEND_DIST = settings.BASE_DIR / "frontend" / "dist"
 if not FRONTEND_DIST.exists():
-    # In container deployment, might be located at /app/frontend/dist or relative
     alt_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
     if alt_dist.exists():
         FRONTEND_DIST = alt_dist
 
 if FRONTEND_DIST.exists() and (FRONTEND_DIST / "index.html").exists():
-    print(f"Mounting production frontend from {FRONTEND_DIST}")
     assets_dir = FRONTEND_DIST / "assets"
     if assets_dir.exists():
         app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
     @app.get("/{full_path:path}")
     def serve_spa(full_path: str):
-        # Don't intercept API or docs routes
         if full_path.startswith("api/") or full_path in {"docs", "redoc", "openapi.json"}:
             return None
         file_candidate = FRONTEND_DIST / full_path
@@ -99,12 +101,13 @@ else:
     @app.get("/")
     def root():
         return {
-            "tool": "ECDAT",
-            "name": "Enterprise Cryptographic Discovery & Analysis Tool",
+            "product": "PRIME",
+            "name": "Postquantum Readiness Intelligence and Migration Engine",
+            "tagline": "Evidence-driven cryptographic intelligence for post-quantum migration readiness",
             "problem_statement": "SIH26164",
             "organization": "National Technical Research Organisation (NTRO)",
-            "theme": "Blockchain & Cybersecurity",
             "team": "PRAYAS",
+            "environment": "LOCAL / AIR-GAPPED",
             "documentation": "/docs"
         }
 

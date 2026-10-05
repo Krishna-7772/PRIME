@@ -23,6 +23,7 @@ class DiscoveredFinding:
     
     confidence: float = 0.90
     detection_method: str = "Static Analysis"
+    detection_rule: Optional[str] = None
     context_notes: Optional[str] = None
     raw_metadata: Dict[str, Any] = field(default_factory=dict)
 

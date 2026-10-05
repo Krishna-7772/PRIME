@@ -1,0 +1,24 @@
+{
+  "aliases": {
+    "RSA": ["RSA", "RSASSA-PKCS1-v1_5", "RSASSA-PSS", "RSA-OAEP", "RSA-PSS", "1.2.840.113549.1.1.1", "rsaEncryption", "RSA_2048", "RSA_3072", "RSA_4096"],
+    "RS256": ["RS256", "SHA256withRSA", "RSA-SHA256"],
+    "RS384": ["RS384", "SHA384withRSA", "RSA-SHA384"],
+    "RS512": ["RS512", "SHA512withRSA", "RSA-SHA512"],
+    "ECDSA": ["ECDSA", "SHA256withECDSA", "SHA384withECDSA", "ES256", "ES384", "ES512", "1.2.840.10045.2.1"],
+    "ECDH": ["ECDH", "Elliptic Curve Diffie-Hellman", "ECDH-ES", "ECDHE"],
+    "X25519": ["X25519", "Curve25519", "1.3.101.110"],
+    "Ed25519": ["Ed25519", "EdDSA", "1.3.101.112"],
+    "AES-GCM": ["AES-GCM", "AES-128-GCM", "AES-256-GCM", "AES/GCM/NoPadding", "A128GCM", "A256GCM"],
+    "AES-CBC": ["AES-CBC", "AES-128-CBC", "AES-256-CBC", "AES/CBC/PKCS5Padding", "A128CBC", "A256CBC"],
+    "3DES": ["3DES", "TripleDES", "DESede", "DES-EDE3-CBC", "1.2.840.113549.3.7"],
+    "MD5": ["MD5", "1.2.840.113549.2.5", "MD5withRSA"],
+    "SHA-1": ["SHA-1", "SHA1", "1.3.14.3.2.26", "SHA1withRSA"],
+    "SHA-256": ["SHA-256", "SHA256", "2.16.840.1.101.3.4.2.1"],
+    "SHA-384": ["SHA-384", "SHA384", "2.16.840.1.101.3.4.2.2"],
+    "SHA-512": ["SHA-512", "SHA512", "2.16.840.1.101.3.4.2.3"],
+    "ML-KEM": ["ML-KEM", "ML-KEM-512", "ML-KEM-768", "ML-KEM-1024", "CRYSTALS-Kyber", "Kyber768", "FIPS 203"],
+    "ML-DSA": ["ML-DSA", "ML-DSA-44", "ML-DSA-65", "ML-DSA-87", "CRYSTALS-Dilithium", "Dilithium3", "FIPS 204"],
+    "SLH-DSA": ["SLH-DSA", "SLH-DSA-SHA2-128s", "SLH-DSA-SHAKE-256s", "SPHINCS+", "FIPS 205"],
+    "X25519MLKEM768": ["X25519MLKEM768", "x25519_kyber768", "x25519_mlkem768", "RFC 10024"]
+  }
+}

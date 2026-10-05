@@ -1,0 +1,100 @@
+{
+  "version": "1.0",
+  "policy_name": "PRIME Enterprise Default Cryptographic Policy",
+  "rules": [
+    {
+      "code": "POL-001",
+      "name": "Disallow MD5 Hash Algorithm",
+      "description": "MD5 is cryptographically broken due to practical collision attacks and must not be used for security purposes.",
+      "category": "HASH_HYGIENE",
+      "severity": "CRITICAL",
+      "condition": {
+        "target": "algorithm",
+        "operator": "equals",
+        "value": "MD5"
+      },
+      "remediation": "Migrate to SHA-256 (FIPS 180-4) or SHA-3 (FIPS 202)."
+    },
+    {
+      "code": "POL-002",
+      "name": "Disallow SHA-1 for Digital Signatures",
+      "description": "SHA-1 has proven collision attacks (SHAttered, Shambles) and is disallowed by NIST SP 800-131A for digital signatures.",
+      "category": "HASH_HYGIENE",
+      "severity": "HIGH",
+      "condition": {
+        "target": "algorithm",
+        "operator": "equals",
+        "value": "SHA-1",
+        "purpose": "digital_signature"
+      },
+      "remediation": "Upgrade signature hash algorithm to SHA-256 or SHA-384."
+    },
+    {
+      "code": "POL-003",
+      "name": "Minimum RSA Key Size 2048-bit",
+      "description": "RSA key sizes below 2048 bits provide less than 112 bits of classical security and are immediately exploitable.",
+      "category": "ASYMMETRIC_STRENGTH",
+      "severity": "CRITICAL",
+      "condition": {
+        "target": "algorithm_family",
+        "operator": "equals",
+        "value": "asymmetric",
+        "algorithm": "RSA",
+        "key_size_lt": 2048
+      },
+      "remediation": "Immediately upgrade to RSA-3072/4096 or migrate to NIST FIPS 204 ML-DSA."
+    },
+    {
+      "code": "POL-004",
+      "name": "Disallow Legacy 3DES and DES Ciphers",
+      "description": "3DES and DES are vulnerable to Sweet32 collision attacks on 64-bit blocks and are deprecated by NIST SP 800-131A.",
+      "category": "SYMMETRIC_HYGIENE",
+      "severity": "CRITICAL",
+      "condition": {
+        "target": "algorithm",
+        "operator": "in",
+        "values": ["3DES", "DES", "TripleDES"]
+      },
+      "remediation": "Migrate to AES-256-GCM (NIST SP 800-38D)."
+    },
+    {
+      "code": "POL-005",
+      "name": "Mandatory Post-Quantum Transition Plan for Mosca Deficit",
+      "description": "Assets where data lifetime (X) plus migration duration (Y) exceeds quantum horizon (Z) pose an immediate Harvest Now, Decrypt Later (HNDL) exposure.",
+      "category": "QUANTUM_EXPOSURE",
+      "severity": "HIGH",
+      "condition": {
+        "target": "mosca_status",
+        "operator": "equals",
+        "value": "AT_RISK"
+      },
+      "remediation": "Formulate migration plan to FIPS 203 ML-KEM or FIPS 204 ML-DSA and enable PQ/T hybrid mode."
+    },
+    {
+      "code": "POL-006",
+      "name": "Enforce TLS 1.2+ Protocol Baseline",
+      "description": "Protocols prior to TLS 1.2 (SSL 3.0, TLS 1.0, TLS 1.1) lack forward secrecy and contain known cipher vulnerabilities.",
+      "category": "PROTOCOL_BASELINE",
+      "severity": "HIGH",
+      "condition": {
+        "target": "protocol",
+        "operator": "in",
+        "values": ["SSLv3", "TLSv1.0", "TLSv1.1"]
+      },
+      "remediation": "Configure TLS 1.3 with support for RFC 10024 hybrid key exchange (e.g. X25519MLKEM768)."
+    },
+    {
+      "code": "POL-007",
+      "name": "Expiring Certificate Proactive Renewal",
+      "description": "Certificates expiring within 30 days must be renewed proactively to prevent enterprise service outage.",
+      "category": "CERTIFICATE_LIFECYCLE",
+      "severity": "MEDIUM",
+      "condition": {
+        "target": "certificate_days_remaining",
+        "operator": "lte",
+        "value": 30
+      },
+      "remediation": "Renew certificate using modernized public key and signature parameters."
+    }
+  ]
+}
